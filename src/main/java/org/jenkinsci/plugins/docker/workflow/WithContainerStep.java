@@ -206,9 +206,18 @@ public class WithContainerStep extends AbstractStepImpl {
             }
 
             String command = dockerClient.runCommand();
+            // BusyBox will print the command name wrapped in {} or [],
+            // if what is running doesn't match the command. See read_cmdline in libbb/procpc.c
+            // this is the case with a call to 'cat'
+            String command_alt1 = "{"+command+"}";
+            String command_alt2 = "["+command+"]";
+
             container = dockerClient.run(env, step.image, step.args, ws, volumes, volumesFromContainers, envReduced, dockerClient.whoAmI(), /* expected to hang until killed */ command);
             final List<String> ps = dockerClient.listProcess(env, container);
-            if (!ps.contains(command)) {
+            if (!ps.contains(command) &&
+                !ps.contains(command_alt1) &&
+                !ps.contains(command_alt2)
+               ) {
                 listener.error(
                     "The container started but didn't run the expected command. " +
                         "Please double check your ENTRYPOINT does execute the command passed as docker run argument, " +
